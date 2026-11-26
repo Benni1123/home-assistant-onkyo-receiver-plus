@@ -9,12 +9,16 @@ from aioonkyo import Code, Kind, Status, Zone, command, query, status
 from aioonkyo.instruction import RawInstruction
 
 from homeassistant.components.media_player import (
+    BrowseMedia,
     MediaPlayerDeviceClass,
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
     MediaPlayerState,
     MediaType,
+    SearchMedia,
+    SearchMediaQuery,
 )
+from homeassistant.components.media_player.errors import BrowseError, SearchError
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -48,6 +52,7 @@ from .source_names import (
     parse_hdmi_assignments,
     parse_input_names,
 )
+from .tunein import CONTENT_TYPE as TUNEIN_CONTENT_TYPE, TuneIn
 from .util import get_meaning
 
 if TYPE_CHECKING:
@@ -215,6 +220,7 @@ async def async_setup_entry(
                 ),
                 sources=data.sources,
                 sound_modes=sound_modes,
+                tunein_supported=zone is Zone.MAIN and can_read_hdmi_ports,
             )
             if sources != data.sources or unprefixed_sources != data.sources:
                 zone_entity.update_source_names(sources, unprefixed_sources)
@@ -253,6 +259,7 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
         ramp_delay: float,
         sources: dict[InputSource, str],
         sound_modes: dict[ListeningMode, str],
+        tunein_supported: bool = False,
     ) -> None:
         """Initialize the Onkyo Receiver."""
         self._manager = manager
@@ -292,6 +299,11 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
         self._attr_sound_mode_list = list(self._rev_sound_mode_mapping)
 
         self._attr_supported_features = SUPPORTED_FEATURES_BASE
+        self._tunein = TuneIn(manager, self._set_network_title) if tunein_supported else None
+        if self._tunein is not None:
+            self._attr_supported_features |= (
+                MediaPlayerEntityFeature.BROWSE_MEDIA | MediaPlayerEntityFeature.SEARCH_MEDIA
+            )
         if zone is Zone.MAIN:
             self._attr_supported_features |= SUPPORTED_FEATURES_VOLUME
             self._supports_volume = True
@@ -593,16 +605,70 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
     async def async_play_media(
         self, media_type: MediaType | str, media_id: str, **kwargs: Any
     ) -> None:
-        """Play radio station by preset number."""
+        """Play internet radio or a hardware tuner preset."""
+        if media_type == TUNEIN_CONTENT_TYPE and self._tunein is not None:
+            if self.state != MediaPlayerState.ON:
+                raise HomeAssistantError("Turn on the receiver before playing TuneIn.")
+            await self._tunein.play(media_id)
+            return
+        if media_type.lower() != "radio":
+            # Stream URLs are not an eISCP capability; HA's Cast player for
+            # this receiver handles them. Fail loudly instead of ignoring.
+            raise ServiceValidationError(
+                f"{self.entity_id} cannot play {media_type} media. Cast or AirPlay "
+                "the URL to this receiver's Google Cast player instead."
+            )
         if self.source is None:
             return
 
         source = self._rev_source_mapping.get(self.source)
-        if media_type.lower() != "radio" or source not in PLAYABLE_SOURCES:
-            return
+        if source not in PLAYABLE_SOURCES:
+            raise ServiceValidationError(
+                f"{self.entity_id} can only play tuner presets while FM/AM/DAB "
+                f"is selected, not while {self.source} is active."
+            )
 
         message = command.TunerPreset(self._zone, int(media_id))
         await self._manager.write(message)
+
+    @callback
+    def _set_network_title(self, title: str | None) -> None:
+        """Expose the TuneIn station without changing the zone's power state."""
+        self._attr_media_title = title
+        if self.hass is not None and self.enabled:
+            self.async_write_ha_state()
+
+    @override
+    async def async_browse_media(
+        self,
+        media_content_type: MediaType | str | None = None,
+        media_content_id: str | None = None,
+    ) -> BrowseMedia:
+        """Show receiver-reported TuneIn categories and stations in HA."""
+        if self._tunein is None:
+            raise BrowseError("TuneIn browsing is unavailable on this receiver.")
+        if not media_content_id:
+            return self._tunein.root()
+        if media_content_type != TUNEIN_CONTENT_TYPE:
+            raise BrowseError("Unsupported media type.")
+        if self.state != MediaPlayerState.ON:
+            raise BrowseError("Turn on the receiver before opening TuneIn.")
+        try:
+            return await self._tunein.browse(media_content_id)
+        except HomeAssistantError as err:
+            raise BrowseError(str(err)) from err
+
+    @override
+    async def async_search_media(self, query: SearchMediaQuery) -> SearchMedia:
+        """Search the current TuneIn category, or Local Radio and favorites."""
+        if self._tunein is None or self.state != MediaPlayerState.ON:
+            raise SearchError("Turn on a TuneIn-capable receiver before searching.")
+        if query.media_content_type not in (None, "", TUNEIN_CONTENT_TYPE):
+            raise SearchError("Unsupported TuneIn search scope.")
+        try:
+            return await self._tunein.search(query.media_content_id, query.search_query)
+        except HomeAssistantError as err:
+            raise SearchError(str(err)) from err
 
     def process_update(self, message: status.Known) -> None:
         """Process update."""

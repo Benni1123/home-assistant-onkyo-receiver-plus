@@ -22,6 +22,7 @@ Zones, controls, and sensors are grouped under one receiver device in Home Assis
 | Input names | Import receiver names and reported HDMI assignments, such as **HDMI 1 / Media Player**. Set your own labels in Home Assistant without renaming inputs on the receiver. |
 | Sound | Adjust temporary subwoofer level, bass, treble, vocal level, A/V sync, and Late Night mode. Select AccuEQ, manual EQ presets, and the digital filter where available. |
 | Remote | Navigate the receiver’s on-screen menus, select inputs, adjust volume, or send playback keys to compatible NET/USB sources. |
+| TuneIn | Browse receiver-reported categories and favorites, search within a category, and start internet radio stations on the TX-NR6050. |
 | Other controls | Switch HDMI outputs, set display brightness or a sleep timer, and select radio presets or FM frequency. |
 | Diagnostics | Read audio/video signal details, internal temperature, firmware version, configured speakers, HDMI output routing, and Network Standby status. |
 
@@ -60,6 +61,12 @@ data:
 Other keys include `up`, `down`, `left`, `right`, `ok`, `back`, `setup`, `mute`, `volume_up`, `volume_down`, `power_on`, and `power_off`. Use `input:<name>` to select a configured input. Compatible NET/USB sources also support playback keys such as `play`, `pause`, and `next_track`.
 
 The [example dashboard card](examples/remote-card.yaml) uses standard Home Assistant buttons. Change the target at the `&receiver_remote` YAML anchor to reuse the card for another receiver.
+
+## TuneIn internet radio
+
+Turn on the receiver and open **Browse media → TuneIn Radio** on its main-zone media player. Select a category such as **My Presets**, **Local Radio**, or **By Location**, then pick a station. Large lists have additional pages.
+
+Search filters the open category. From the TuneIn root it also searches **Local Radio** and **My Presets**; it is not a global TuneIn catalog search. Navigation uses the receiver’s own TuneIn menu: opening TuneIn switches to NET if necessary and may interrupt playback on another source. It does not change the volume or modify presets.
 
 ## Troubleshooting
 

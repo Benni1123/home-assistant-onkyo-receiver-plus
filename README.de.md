@@ -22,6 +22,7 @@ Zonen, Bedienelemente und Sensoren werden in Home Assistant unter einem Receiver
 | Eingangsnamen | Namen und gemeldete HDMI-Zuordnungen übernehmen, z. B. **HDMI 1 / Medienplayer**. Eigene Namen nur für HA vergeben, ohne die Bezeichnung am Receiver zu ändern. |
 | Klang | Temporären Subwoofer-Pegel, Bass, Höhen, Dialogpegel, A/V-Sync und Nachtmodus einstellen. Je nach Modell und Hörmodus stehen AccuEQ, manuelle EQ-Presets und der Digitalfilter zur Verfügung. |
 | Fernbedienung | Das Receiver-Menü bedienen, Eingänge wählen, Lautstärke ändern und Wiedergabetasten an kompatible NET-/USB-Quellen senden. |
+| TuneIn | Am TX-NR6050 die vom Receiver gemeldeten Kategorien und Favoriten öffnen, im gewählten Ordner suchen und Internetradio starten. |
 | Weitere Regler | HDMI-Ausgang, Display-Helligkeit, Einschlaftimer, Radio-Speicherplätze und UKW-Frequenz einstellen. |
 | Diagnose | Audio-/Video-Signal, interne Temperatur, Firmware, Lautsprecherkonfiguration, HDMI-Zonenzuordnung und Netzwerk-Standby auslesen. |
 
@@ -60,6 +61,12 @@ data:
 Weitere Tasten sind unter anderem `up`, `down`, `left`, `right`, `ok`, `back`, `setup`, `mute`, `volume_up`, `volume_down`, `power_on` und `power_off`. `input:<Name>` wählt einen konfigurierten Eingang. Kompatible NET-/USB-Quellen unterstützen auch Wiedergabetasten wie `play`, `pause` und `next_track`.
 
 Die [Beispielkarte](examples/remote-card.yaml) nutzt eingebaute HA-Tasten. Ändere das Ziel am YAML-Anker `&receiver_remote`, um die Karte für einen anderen Receiver zu verwenden.
+
+## TuneIn-Internetradio
+
+Den Receiver einschalten und beim Medienplayer der Hauptzone **Medien durchsuchen → TuneIn Radio** öffnen. Eine Kategorie wie **My Presets**, **Local Radio** oder **By Location** wählen und dann den gewünschten Sender anklicken. Für große Listen gibt es weitere Seiten.
+
+Die Suche durchsucht den geöffneten Ordner. In der TuneIn-Übersicht sucht sie zusätzlich in **Local Radio** und **My Presets**, nicht im gesamten TuneIn-Katalog. Beim Öffnen von TuneIn schaltet die Integration bei Bedarf auf NET um; das kann andere Wiedergabe unterbrechen. Lautstärke und gespeicherte Sender bleiben unverändert.
 
 ## Hilfe bei Problemen
 

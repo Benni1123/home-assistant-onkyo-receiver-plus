@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.2
+
+- The eISCP media player now rejects unsupported `play_media` content (such as stream URLs) with a clear error instead of silently ignoring it, and tuner presets require an FM/AM/DAB input.
+
+## 0.4.1
+
+- Fetch the current TuneIn title even when playback was already active or started from the receiver, rather than waiting for Home Assistant to start a station.
+
+## 0.4.0
+
+- Added a TuneIn media browser for the TX-NR6050: receiver-reported categories, favorites and nested folders, pagination, and station playback.
+- Added search within the open TuneIn category, or in Local Radio and My Presets when searching from the TuneIn root.
+- Display the receiver-reported TuneIn title during playback.
+
 ## 0.3.1
 
 - Added a main-zone Home Assistant remote for eISCP receivers, including OSD navigation, playback keys, safe volume steps, and configured input selection. TX-NR6050 is the reference model; supported keys vary with the receiver.
