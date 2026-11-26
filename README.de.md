@@ -28,6 +28,12 @@ Zonen, Bedienelemente und Sensoren werden in Home Assistant unter einem Receiver
 
 Der temporäre Subwoofer-Pegel ist von der Einmessung getrennt und wird im Standby zurückgesetzt. Die dauerhafte Lautsprecherkalibrierung und getrennte Front-L/R-Pegel werden nicht unterstützt. Die Fernbedienung kann Menütasten senden, aber nicht erkennen, welcher Menüpunkt ausgewählt ist.
 
+## Stream-URLs über Google Cast
+
+Das eISCP-Protokoll kann keine beliebigen Stream-URLs abspielen; die Integration lehnt sie mit einer klaren Fehlermeldung ab. Die meisten TX-NR6050 bieten zusätzlich **Chromecast built-in**, das Home Assistant als eigenen Medienplayer zeigt. Schicke `media_player.play_media` mit einer MP3-/AAC-Stream-URL an diesen Player – zum Beispiel einen Sender aus der Integration [Radio Browser](https://www.home-assistant.io/integrations/radio_browser/).
+
+Fehlt der Cast-Player, ist die automatische Erkennung blockiert. Unter **Einstellungen → Geräte & Dienste → Google Cast → ⚙ Optionen** die Receiver-IP (z. B. `10.0.0.249`) bei **Known hosts** eintragen und neu laden. Die Cast-Lautstärke ist unabhängig von der Hauptlautstärke, die diese Integration steuert.
+
 ## Installation
 
 ### HACS / Home Assistant Marketplace

@@ -28,6 +28,12 @@ Zones, controls, and sensors are grouped under one receiver device in Home Assis
 
 The temporary subwoofer trim is separate from speaker calibration and resets in standby. Permanent speaker calibration and separate front L/R trim are not supported. The remote can send menu keys but cannot determine which menu item is highlighted.
 
+## Streaming URLs via Google Cast
+
+The eISCP protocol cannot play arbitrary stream URLs, so this integration rejects them with a clear error. Most TX-NR6050 receivers also expose **Chromecast built-in**, which Home Assistant shows as its own media player. Send `media_player.play_media` with an MP3/AAC stream URL to that player instead — for example a station from the [Radio Browser](https://www.home-assistant.io/integrations/radio_browser/) integration.
+
+If the cast player does not appear, discovery may be blocked in your network. Open **Settings → Devices & services → Google Cast → ⚙ Options**, add the receiver's IP (for example `10.0.0.249`) to **Known hosts**, and reload. Cast volume is separate from the receiver's main volume controlled by this integration.
+
 ## Installation
 
 ### HACS / Home Assistant Marketplace
