@@ -1,0 +1,163 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Gerät ist bereits eingerichtet",
+      "no_devices_found": "Keine Geräte gefunden",
+      "unique_id_mismatch": "Die Seriennummer stimmt nicht überein",
+      "unknown": "Unerwarteter Fehler"
+    },
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen",
+      "empty_input_source_list": "Wähle mindestens einen Eingang",
+      "empty_listening_mode_list": "Wähle mindestens einen Hörmodus",
+      "unknown": "Unerwarteter Fehler"
+    },
+    "step": {
+      "configure_receiver": {
+        "data": {
+          "input_sources": "Eingänge",
+          "listening_modes": "Hörmodi",
+          "volume_resolution": "Lautstärkeauflösung"
+        },
+        "data_description": {
+          "input_sources": "Wähle die Eingänge anhand der Namen und HDMI-Buchsen, die der Receiver meldet.",
+          "listening_modes": "Wähle die Hörmodi, die Home Assistant anbieten soll.",
+          "volume_resolution": "Anzahl der Lautstärkeschritte über den gesamten Regelbereich."
+        },
+        "description": "{name} konfigurieren"
+      },
+      "eiscp_discovery": {
+        "data": {"device": "Gerät"}
+      },
+      "manual": {
+        "data": {"host": "IP-Adresse oder Hostname"}
+      },
+      "user": {
+        "menu_options": {
+          "eiscp_discovery": "Onkyo suchen",
+          "manual": "Manuelle Eingabe"
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "empty_input_source_list": "Wähle mindestens einen Eingang",
+      "empty_listening_mode_list": "Wähle mindestens einen Hörmodus",
+      "invalid_input_source_names": "Eingangsnamen dürfen weder leer noch doppelt sein."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "input_sources": "Eingänge",
+          "listening_modes": "Hörmodi",
+          "max_volume": "Lautstärkelimit (%)",
+          "auto_input_names": "Eingangsnamen vom Receiver übernehmen",
+          "show_hdmi_ports": "HDMI-Buchsennummer vor Eingangsnamen anzeigen",
+          "volume_mode": "Lautstärkeverhalten",
+          "volume_step_delay": "Pause zwischen Schritten (Sekunden)"
+        },
+        "data_description": {
+          "auto_input_names": "Bei Verbindungsaufbau die Namen für ausgewählte Eingänge mit Standardnamen übernehmen. Manuelle Namen haben Vorrang.",
+          "show_hdmi_ports": "Zeigt z. B. „HDMI 1 / Google TV“ an, wenn der Receiver eine HDMI-Zuordnung meldet.",
+          "input_sources": "Die Namen und HDMI-Buchsennummern stammen vom Receiver.",
+          "listening_modes": "Die Hörmodi, die in Home Assistant auswählbar sind.",
+          "max_volume": "Receiver-Lautstärke, die 100 % in Home Assistant entspricht.",
+          "volume_mode": "Zielpegel sofort setzen oder schrittweise anfahren.",
+          "volume_step_delay": "Mindestabstand zwischen Lautstärkebefehlen im Modus Schrittweise."
+        }
+      },
+      "names": {
+        "sections": {
+          "input_sources": {
+            "description": "Namen dieser Eingänge in Home Assistant ändern.",
+            "name": "Eingangsnamen"
+          },
+          "listening_modes": {
+            "description": "Namen dieser Hörmodi in Home Assistant ändern.",
+            "name": "Hörmodus-Namen"
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "volume_mode": {
+      "options": {
+        "direct": "Sofort",
+        "ramp": "Schrittweise"
+      }
+    }
+  },
+  "entity": {
+    "number": {
+      "subwoofer_level": {
+        "name": "Subwoofer-Pegel (temporär)"
+      },
+      "bass": {"name": "Bass"},
+      "treble": {"name": "Höhen"},
+      "av_sync": {"name": "Audioverzögerung (A/V Sync)"},
+      "vocal": {"name": "Dialogpegel"},
+      "dts_dialog": {"name": "DTS:X Dialog Control"},
+      "sleep_timer": {"name": "Einschlaftimer"},
+      "tuner_preset": {"name": "Radio-Speicherplatz"},
+      "fm_frequency": {"name": "UKW-Frequenz"}
+    },
+    "switch": {
+      "music_optimizer": {"name": "Music Optimizer"},
+      "cinema_filter": {"name": "Cinema Filter"},
+      "arc": {"name": "HDMI-Audiorückkanal (ARC)"},
+      "hdmi_cec": {"name": "HDMI-CEC"},
+      "hdmi_audio_out": {"name": "HDMI-Audioausgabe"}
+    },
+    "select": {
+      "dimmer": {
+        "name": "Display-Helligkeit",
+        "state": {"bright": "Hell", "dim": "Gedimmt", "dark": "Dunkel"}
+      },
+      "late_night": {
+        "name": "Nachtmodus",
+        "state": {"off": "Aus", "on": "Ein / Niedrig", "high": "Hoch", "auto": "Automatisch"}
+      },
+      "hdmi_output": {
+        "name": "HDMI-Ausgang",
+        "state": {"main": "Main", "sub": "Sub", "both": "Main + Sub"}
+      },
+      "accueq": {
+        "name": "AccuEQ",
+        "state": {"off": "Aus", "all": "Alle Kanäle", "except_front": "Ohne Front L/R"}
+      },
+      "manual_eq": {
+        "name": "Manueller Equalizer",
+        "state": {"off": "Aus", "preset_1": "Preset 1", "preset_2": "Preset 2", "preset_3": "Preset 3"}
+      },
+      "digital_filter": {
+        "name": "Digitalfilter",
+        "state": {"slow": "Slow", "sharp": "Sharp", "short": "Short", "auto": "Automatisch"}
+      },
+      "stereo_assign": {
+        "name": "Stereo-Lautsprecher",
+        "state": {"front": "Front", "surround": "Surround", "surround_back": "Surround Back", "height_1": "Höhe 1", "height_2": "Höhe 2"}
+      }
+    },
+    "sensor": {
+      "audio_signal": {"name": "Audiosignal"},
+      "audio_input_channels": {"name": "Audio-Eingangskanäle"},
+      "audio_output_channels": {"name": "Audio-Ausgangskanäle"},
+      "video_signal": {"name": "Videosignal"},
+      "video_hdr": {"name": "HDR-Format"},
+      "display": {"name": "Frontdisplay"},
+      "receiver_temperature": {"name": "Receiver-Temperatur"},
+      "firmware_version": {"name": "Firmware-Version"},
+      "speaker_configuration": {"name": "Lautsprecherkonfiguration"},
+      "hdmi_routing": {"name": "HDMI-Sub-Ausgang zugeordnet zu"}
+    },
+    "remote": {
+      "network_remote": {"name": "Fernbedienung"}
+    },
+    "binary_sensor": {
+      "network_standby": {"name": "Netzwerk-Standby"},
+      "dts_dialog_supported": {"name": "DTS:X Dialog Control verfügbar"}
+    }
+  }
+}

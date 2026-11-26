@@ -1,0 +1,8 @@
+Onkyo Receiver Plus
+
+This independent project includes modified code from the Onkyo integration in
+Home Assistant Core 2026.11.3, licensed under the Apache License, Version 2.0:
+https://github.com/home-assistant/core/tree/2026.11.3/homeassistant/components/onkyo
+
+The project artwork is an original generic receiver illustration, not the
+official Onkyo logo. This project is not affiliated with Onkyo or Home Assistant.

@@ -1,0 +1,2 @@
+homeassistant==2026.11.3
+aioonkyo==0.4.0

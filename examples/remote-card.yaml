@@ -1,0 +1,77 @@
+type: grid
+title: Onkyo-Fernbedienung
+columns: 3
+square: false
+cards:
+  - type: button
+    name: Zurück
+    icon: mdi:arrow-u-left-top
+    tap_action:
+      action: perform-action
+      perform_action: remote.send_command
+      target: &receiver_remote { entity_id: remote.tx_nr6050_fernbedienung }
+      data: { command: back }
+  - type: button
+    icon: mdi:chevron-up
+    name: Hoch
+    tap_action:
+      action: perform-action
+      perform_action: remote.send_command
+      target: *receiver_remote
+      data: { command: up }
+  - type: button
+    name: Quick-Menü
+    icon: mdi:menu-open
+    tap_action:
+      action: perform-action
+      perform_action: remote.send_command
+      target: *receiver_remote
+      data: { command: quick_menu }
+  - type: button
+    name: Links
+    icon: mdi:chevron-left
+    tap_action:
+      action: perform-action
+      perform_action: remote.send_command
+      target: *receiver_remote
+      data: { command: left }
+  - type: button
+    name: OK
+    icon: mdi:check
+    tap_action:
+      action: perform-action
+      perform_action: remote.send_command
+      target: *receiver_remote
+      data: { command: ok }
+  - type: button
+    name: Rechts
+    icon: mdi:chevron-right
+    tap_action:
+      action: perform-action
+      perform_action: remote.send_command
+      target: *receiver_remote
+      data: { command: right }
+  - type: button
+    name: Leiser
+    icon: mdi:volume-minus
+    tap_action:
+      action: perform-action
+      perform_action: remote.send_command
+      target: *receiver_remote
+      data: { command: volume_down }
+  - type: button
+    name: Runter
+    icon: mdi:chevron-down
+    tap_action:
+      action: perform-action
+      perform_action: remote.send_command
+      target: *receiver_remote
+      data: { command: down }
+  - type: button
+    name: Lauter
+    icon: mdi:volume-plus
+    tap_action:
+      action: perform-action
+      perform_action: remote.send_command
+      target: *receiver_remote
+      data: { command: volume_up }

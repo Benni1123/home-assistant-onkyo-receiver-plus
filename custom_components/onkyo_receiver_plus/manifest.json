@@ -1,0 +1,15 @@
+{
+  "domain": "onkyo_receiver_plus",
+  "name": "Onkyo Receiver Plus",
+  "codeowners": ["@Benni1123"],
+  "config_flow": true,
+  "connectivity": ["network"],
+  "dependencies": ["network"],
+  "documentation": "https://github.com/Benni1123/home-assistant-onkyo-receiver-plus#readme",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/Benni1123/home-assistant-onkyo-receiver-plus/issues",
+  "loggers": ["aioonkyo"],
+  "requirements": ["aioonkyo==0.4.0"],
+  "version": "0.3.1"
+}

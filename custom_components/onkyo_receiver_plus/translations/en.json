@@ -1,0 +1,190 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Device is already configured",
+      "no_devices_found": "No devices found",
+      "unique_id_mismatch": "The serial number of the device does not match the previous serial number",
+      "unknown": "Unexpected error"
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "empty_input_source_list": "Input source list cannot be empty",
+      "empty_listening_mode_list": "Listening mode list cannot be empty",
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "configure_receiver": {
+        "data": {
+          "input_sources": "Input sources",
+          "listening_modes": "Listening modes",
+          "volume_resolution": "Volume resolution"
+        },
+        "data_description": {
+          "input_sources": "Select the physical input sources to expose in Home Assistant.",
+          "listening_modes": "Select listening modes to expose in Home Assistant.",
+          "volume_resolution": "Number of steps it takes for the receiver to go from the lowest to the highest possible volume."
+        },
+        "description": "Configure {name}"
+      },
+      "eiscp_discovery": {
+        "data": {
+          "device": "Device"
+        },
+        "data_description": {
+          "device": "Select the receiver to configure."
+        }
+      },
+      "manual": {
+        "data": {
+          "host": "Host"
+        },
+        "data_description": {
+          "host": "Hostname or IP address of the receiver."
+        }
+      },
+      "user": {
+        "menu_options": {
+          "eiscp_discovery": "Onkyo discovery",
+          "manual": "Manual entry"
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "cannot_connect": {
+      "message": "Could not connect to the receiver at {host}."
+    },
+    "interview_error": {
+      "message": "Unexpected error while interviewing the receiver at {host}."
+    },
+    "interview_timeout": {
+      "message": "Timed out while interviewing the receiver at {host}."
+    },
+    "invalid_sound_mode": {
+      "message": "Cannot select sound mode \"{invalid_sound_mode}\" for entity: {entity_id}."
+    },
+    "invalid_source": {
+      "message": "Cannot select input source \"{invalid_source}\" for entity: {entity_id}."
+    }
+  },
+  "options": {
+    "error": {
+      "empty_input_source_list": "Input source list cannot be empty",
+      "invalid_input_source_names": "Input names cannot be empty or duplicated.",
+      "empty_listening_mode_list": "Listening mode list cannot be empty"
+    },
+    "step": {
+      "init": {
+        "data": {
+          "input_sources": "Input sources",
+          "listening_modes": "Listening modes",
+          "max_volume": "Maximum volume limit (%)",
+          "auto_input_names": "Use receiver input names",
+          "show_hdmi_ports": "Prefix input names with HDMI port numbers",
+          "volume_mode": "Volume target behavior",
+          "volume_step_delay": "Pause between steps (seconds)"
+        },
+        "data_description": {
+          "auto_input_names": "Import the receiver's labels for selected inputs that still have default names. Manual names take precedence.",
+          "show_hdmi_ports": "Show labels such as HDMI 1 / Google TV for assigned inputs.",
+          "input_sources": "List of input sources supported by the receiver.",
+          "listening_modes": "List of listening modes supported by the receiver.",
+          "max_volume": "Receiver volume corresponding to 100% in Home Assistant.",
+          "volume_mode": "Set the target immediately or approach it one receiver step at a time.",
+          "volume_step_delay": "Minimum interval between volume commands in stepwise mode."
+        }
+      },
+      "names": {
+        "sections": {
+          "input_sources": {
+            "description": "Mappings of receiver's input sources to their names.",
+            "name": "Input source names"
+          },
+          "listening_modes": {
+            "description": "Mappings of receiver's listening modes to their names.",
+            "name": "Listening mode names"
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "volume_mode": {
+      "options": {
+        "direct": "Immediate",
+        "ramp": "Stepwise"
+      }
+    }
+  },
+  "entity": {
+    "number": {
+      "subwoofer_level": {
+        "name": "Subwoofer level (temporary)"
+      },
+      "bass": {"name": "Bass"},
+      "treble": {"name": "Treble"},
+      "av_sync": {"name": "A/V sync audio delay"},
+      "vocal": {"name": "Dialog level"},
+      "dts_dialog": {"name": "DTS:X Dialog Control"},
+      "sleep_timer": {"name": "Sleep timer"},
+      "tuner_preset": {"name": "Radio preset"},
+      "fm_frequency": {"name": "FM frequency"}
+    },
+    "switch": {
+      "music_optimizer": {"name": "Music Optimizer"},
+      "cinema_filter": {"name": "Cinema Filter"},
+      "arc": {"name": "HDMI Audio Return Channel (ARC)"},
+      "hdmi_cec": {"name": "HDMI-CEC"},
+      "hdmi_audio_out": {"name": "HDMI audio output"}
+    },
+    "select": {
+      "dimmer": {
+        "name": "Display brightness",
+        "state": {"bright": "Bright", "dim": "Dim", "dark": "Dark"}
+      },
+      "late_night": {
+        "name": "Late Night",
+        "state": {"off": "Off", "on": "On / Low", "high": "High", "auto": "Auto"}
+      },
+      "hdmi_output": {
+        "name": "HDMI output",
+        "state": {"main": "Main", "sub": "Sub", "both": "Main + Sub"}
+      },
+      "accueq": {
+        "name": "AccuEQ",
+        "state": {"off": "Off", "all": "All channels", "except_front": "Except front L/R"}
+      },
+      "manual_eq": {
+        "name": "Manual equalizer",
+        "state": {"off": "Off", "preset_1": "Preset 1", "preset_2": "Preset 2", "preset_3": "Preset 3"}
+      },
+      "digital_filter": {
+        "name": "Digital filter",
+        "state": {"slow": "Slow", "sharp": "Sharp", "short": "Short", "auto": "Auto"}
+      },
+      "stereo_assign": {
+        "name": "Stereo speaker assignment",
+        "state": {"front": "Front", "surround": "Surround", "surround_back": "Surround Back", "height_1": "Height 1", "height_2": "Height 2"}
+      }
+    },
+    "sensor": {
+      "audio_signal": {"name": "Audio signal"},
+      "audio_input_channels": {"name": "Audio input channels"},
+      "audio_output_channels": {"name": "Audio output channels"},
+      "video_signal": {"name": "Video signal"},
+      "video_hdr": {"name": "HDR format"},
+      "display": {"name": "Front display"},
+      "receiver_temperature": {"name": "Receiver temperature"},
+      "firmware_version": {"name": "Firmware version"},
+      "speaker_configuration": {"name": "Speaker configuration"},
+      "hdmi_routing": {"name": "HDMI sub output assigned to"}
+    },
+    "remote": {
+      "network_remote": {"name": "Remote"}
+    },
+    "binary_sensor": {
+      "network_standby": {"name": "Network Standby"},
+      "dts_dialog_supported": {"name": "DTS:X Dialog Control available"}
+    }
+  }
+}
