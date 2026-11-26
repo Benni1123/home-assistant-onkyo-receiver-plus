@@ -6,7 +6,55 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from aioonkyo import Code, query, status
 
+from types import SimpleNamespace
+import unittest
+from unittest.mock import AsyncMock, Mock
+
+from homeassistant.exceptions import ServiceValidationError
+
 from custom_components.onkyo_receiver_plus.config_flow import receiver_input_selector
+from custom_components.onkyo_receiver_plus.const import InputSource
+from custom_components.onkyo_receiver_plus.select import OnkyoTunerPresetSelect
+from custom_components.onkyo_receiver_plus.util import get_meaning
+
+
+class TunerPresetSelectTest(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.extras = SimpleNamespace(
+            manager=SimpleNamespace(
+                info=SimpleNamespace(identifier="receiver"),
+                device_info={"identifiers": {("onkyo_receiver_plus", "receiver")}},
+                connected=True,
+                presets={
+                    1: {"band": "0", "freq": 9830, "name": "hr3"},
+                    3: {"band": "2", "freq": 0, "name": "DAB Rock"},
+                    5: {"band": "0", "freq": 0, "name": ""},
+                },
+            ),
+            values={"tuner_preset": 3},
+            powered=True,
+            source=InputSource("24"),
+            set=AsyncMock(),
+        )
+        self.select = OnkyoTunerPresetSelect(self.extras)
+
+    def test_options_use_receiver_names_and_current_preset(self):
+        self.assertEqual(self.select.options, ["01: hr3", "03: DAB Rock", "05"])
+        self.assertEqual(self.select.current_option, "03: DAB Rock")
+        self.assertTrue(self.select.available)
+
+    def test_unavailable_off_tuner(self):
+        self.extras.source = InputSource("2B")
+        self.assertFalse(self.select.available)
+
+    async def test_select_sends_preset_number(self):
+        await self.select.async_select_option("01: hr3")
+        self.extras.set.assert_awaited_once_with("tuner_preset", b"01")
+
+    async def test_select_rejects_unknown_option(self):
+        with self.assertRaises(ServiceValidationError):
+            await self.select.async_select_option("02: not stored")
+        self.extras.set.assert_not_awaited()
 from custom_components.onkyo_receiver_plus.const import InputSource
 from custom_components.onkyo_receiver_plus.diagnostics import async_get_config_entry_diagnostics
 from custom_components.onkyo_receiver_plus.extras import (

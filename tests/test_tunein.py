@@ -133,6 +133,27 @@ class TuneInTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(europe.children[0].title, "Europe FM")
         self.assertTrue(europe.children[0].can_play)
 
+    async def test_folder_header_may_shorten_dance_and_electronic(self):
+        self.root_rows[1] = ("Dance & Electronic", "29", "1")
+        original_emit = self.emit
+
+        async def emit(code, value):
+            if code == b"NLT" and value.endswith(b"Local Radio"):
+                value = value[:-len(b"Local Radio")] + b"Dance "
+            await original_emit(code, value)
+
+        self.emit = emit
+        root = await self.tunein.browse(ROOT_ID)
+        folder = root.children[1]
+        stations = await self.tunein.browse(folder.media_content_id)
+        self.assertEqual(stations.title, "Dance & Electronic")
+        station = next(item for item in stations.children if item.can_play)
+        await self.tunein.play(station.media_content_id)
+        self.assertTrue(any(
+            isinstance(message, RawInstruction) and message.raw_code == b"NLS"
+            for message in self.writes
+        ))
+
     async def test_receiver_playing_outside_ha_requests_title_without_switching(self):
         async def loaded(message):
             self.writes.append(message)

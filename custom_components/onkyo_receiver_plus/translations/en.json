@@ -117,7 +117,16 @@
     }
   },
   "entity": {
+    "text": {
+      "fm_station_name": {"name": "FM station name"}
+    },
+    "button": {
+      "fm_station_save": {"name": "Save FM station"},
+      "fm_station_delete": {"name": "Delete FM station"},
+      "dab_read_services": {"name": "Read DAB service list (muted)"}
+    },
     "number": {
+      "fm_station_frequency": {"name": "FM station frequency"},
       "subwoofer_level": {
         "name": "Subwoofer level (temporary)"
       },
@@ -138,6 +147,7 @@
       "hdmi_audio_out": {"name": "HDMI audio output"}
     },
     "select": {
+      "fm_station_edit": {"name": "Edit FM station"},
       "dimmer": {
         "name": "Display brightness",
         "state": {"bright": "Bright", "dim": "Dim", "dark": "Dark"}
@@ -165,9 +175,13 @@
       "stereo_assign": {
         "name": "Stereo speaker assignment",
         "state": {"front": "Front", "surround": "Surround", "surround_back": "Surround Back", "height_1": "Height 1", "height_2": "Height 2"}
+      },
+      "tuner_preset": {
+        "name": "Tuner presets"
       }
     },
     "sensor": {
+      "dab_scan_status": {"name": "DAB list status"},
       "audio_signal": {"name": "Audio signal"},
       "audio_input_channels": {"name": "Audio input channels"},
       "audio_output_channels": {"name": "Audio output channels"},
@@ -185,6 +199,25 @@
     "binary_sensor": {
       "network_standby": {"name": "Network Standby"},
       "dts_dialog_supported": {"name": "DTS:X Dialog Control available"}
+    }
+  },
+  "services": {
+    "save_fm_station": {
+      "name": "Save FM station",
+      "description": "Adds or replaces a station in the integration's own FM station book. The name is the unique key; the receiver's tuner presets are not modified.",
+      "fields": {
+        "entity_id": {"name": "Media player", "description": "The Onkyo Receiver Plus media player to tune."},
+        "name": {"name": "Name", "description": "Station name shown in Home Assistant."},
+        "frequency": {"name": "Frequency (MHz)", "description": "FM frequency between 87.5 and 108.0 MHz in 50 kHz steps."}
+      }
+    },
+    "delete_fm_station": {
+      "name": "Delete FM station",
+      "description": "Removes a station from the integration's own FM station book.",
+      "fields": {
+        "entity_id": {"name": "Media player", "description": "The Onkyo Receiver Plus media player."},
+        "name": {"name": "Name", "description": "Name of the station to remove."}
+      }
     }
   }
 }

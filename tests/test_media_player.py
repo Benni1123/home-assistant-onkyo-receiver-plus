@@ -6,7 +6,11 @@ import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
 from aioonkyo import Code, Zone, command, query, status
-from homeassistant.components.media_player import MediaPlayerState
+from homeassistant.components.media_player import (
+    BrowseMedia,
+    MediaClass,
+    MediaPlayerState,
+)
 
 from custom_components.onkyo_receiver_plus.const import InputSource
 from custom_components.onkyo_receiver_plus.media_player import OnkyoMediaPlayer
@@ -15,10 +19,11 @@ from custom_components.onkyo_receiver_plus.media_player import OnkyoMediaPlayer
 class MediaPlayerTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.manager = SimpleNamespace(
-            info=SimpleNamespace(model_name="TX-NR6050", identifier="test_receiver"),
+            info=SimpleNamespace(model_name="TX-NR6050", identifier="test_receiver", host="rx.test"),
             device_info={"identifiers": {("onkyo_receiver_plus", "test_receiver")}},
             connected=True,
             write=AsyncMock(),
+            callbacks=SimpleNamespace(update=[], disconnect=[]),
             entry=SimpleNamespace(
                 async_create_background_task=lambda _hass, work, _name: asyncio.create_task(
                     work
@@ -44,6 +49,92 @@ class MediaPlayerTest(unittest.IsolatedAsyncioTestCase):
     def confirm(self, instruction):
         self.entity._device_volume = instruction.param
         self.entity._volume_reports.put_nowait(instruction.param)
+
+    async def test_dab_station_name_is_title_fallback(self):
+        self.entity._current_source = InputSource.DAB
+        self.entity.update_tuner_media(b"DSN", b"ENERGY          ")
+        self.assertEqual(self.entity.media_title, "ENERGY")
+        self.entity._attr_media_title = "Real song title"
+        self.assertEqual(self.entity.media_title, "Real song title")
+        self.entity._attr_media_title = None
+        self.assertEqual(self.entity.media_title, "ENERGY")
+
+    async def test_fm_station_name_uses_actual_frequency(self):
+        self.entity._current_source = InputSource.FM
+        self.entity._fm = SimpleNamespace(stations=[
+            {"name": "89.0 RTL", "freq": 89.0},
+            {"name": "Another station", "freq": 94.45},
+        ])
+        self.entity.update_tuner_media(b"TUN", b"08900")
+        self.assertEqual(self.entity.media_title, "89.0 RTL")
+        self.entity.update_tuner_media(b"TUN", b"09445")
+        self.assertEqual(self.entity.media_title, "Another station")
+        self.entity.update_tuner_media(b"TUN", b"09000")
+        self.assertEqual(self.entity.media_title, "FM 90 MHz")
+
+    async def test_tuner_metadata_does_not_replace_net_title(self):
+        self.entity._current_source = InputSource.NETWORK
+        self.entity._attr_media_title = "Song"
+        self.entity.update_tuner_media(b"DSN", b"Old station")
+        self.entity.update_tuner_media(b"TUN", b"08900")
+        self.assertEqual(self.entity.media_title, "Song")
+
+    async def test_tuner_name_clears_on_source_change_and_standby(self):
+        self.entity._current_source = InputSource.DAB
+        self.entity.update_tuner_media(b"DSN", b"ENERGY")
+        with patch("custom_components.onkyo_receiver_plus.media_player.async_call_later"):
+            self.entity.process_update(status.InputSource(Code.SLI, b"10", InputSource("10")))
+        self.assertIsNone(self.entity.media_title)
+        self.entity._current_source = InputSource.DAB
+        self.entity.update_tuner_media(b"DSN", b"ENERGY")
+        self.entity._attr_state = MediaPlayerState.OFF
+        self.assertIsNone(self.entity.media_title)
+
+    async def test_browse_root_lists_tunein_dab_and_fm(self):
+        from custom_components.onkyo_receiver_plus.dab import CONTENT_TYPE as DAB_TYPE
+        from custom_components.onkyo_receiver_plus.fm import CONTENT_TYPE as FM_TYPE
+
+        class StubRadio:
+            async def async_browse(self, value=None):
+                return BrowseMedia(
+                    media_class=MediaClass.DIRECTORY, media_content_id="stub",
+                    media_content_type="stub", title="stub", can_play=False,
+                    can_expand=True, children=[],
+                )
+
+        self.entity = OnkyoMediaPlayer(
+            self.manager,
+            Zone.MAIN,
+            volume_resolution=100,
+            max_volume=40,
+            ramp_enabled=True,
+            ramp_delay=0,
+            sources={InputSource("10"): "Blu-ray"},
+            sound_modes={},
+            tunein_supported=True,
+            fm_stations=StubRadio(),
+            dab_radio=StubRadio(),
+        )
+        self.entity.hass = Mock()
+        self.entity._attr_state = MediaPlayerState.ON
+        root = await self.entity.async_browse_media(None, None)
+        children = {
+            child.media_content_type: child.title for child in root.children
+        }
+        self.assertEqual(children.get("onkyo_tunein"), "TuneIn Radio")
+        self.assertEqual(children.get(DAB_TYPE), "DAB+ Radio")
+        self.assertEqual(children.get(FM_TYPE), "FM Radio (own list)")
+        self.assertEqual(
+            (await self.entity.async_browse_media(DAB_TYPE, "dab")).title, "stub"
+        )
+        self.assertEqual(
+            (await self.entity.async_browse_media(FM_TYPE, "fm")).title, "stub"
+        )
+        self.entity._dab = self.entity._fm = None
+        without = await self.entity.async_browse_media(None, None)
+        self.assertEqual(
+            [child.media_content_type for child in without.children], ["onkyo_tunein"]
+        )
 
     async def test_ramp_steps_through_confirmed_levels(self):
         self.manager.write.side_effect = self.confirm
@@ -194,3 +285,38 @@ class MediaPlayerTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(
                 self.manager.write.await_args.args[0], command.InputSource(Zone.MAIN, source)
             )
+
+    async def test_net_metadata_title_artist_album_and_artwork(self):
+        with patch(
+            "custom_components.onkyo_receiver_plus.media_player.async_call_later"
+        ) as later:
+            net = InputSource("2B")
+            self.entity._current_source = net
+            self.entity.update_net_media(b"NTI", b"Song Title ")
+            self.entity.update_net_media(b"NAT", b"The Artist")
+            self.entity.update_net_media(b"NAL", b"The Album")
+            self.assertEqual(self.entity.media_title, "Song Title")
+            self.assertEqual(self.entity.media_artist, "The Artist")
+            self.assertEqual(self.entity.media_album_name, "The Album")
+            self.assertEqual(
+                self.entity.media_image_url, "http://rx.test/album_art.cgi"
+            )
+            later.assert_not_called()
+            self.entity.update_net_media(b"NJA", b"http://art.example/cover.jpg")
+            self.assertEqual(self.entity.media_image_url, "http://rx.test/album_art.cgi")
+            self.entity.update_net_media(b"NJA", b"LINK")
+            self.assertEqual(self.entity.media_image_url, "http://rx.test/album_art.cgi")
+
+    async def test_leaving_net_clears_media_metadata(self):
+        self.entity._attr_media_title = "Song"
+        self.entity._attr_media_artist = "Artist"
+        self.entity._attr_media_image_url = "http://rx.test/album_art.cgi"
+        with patch(
+            "custom_components.onkyo_receiver_plus.media_player.async_call_later"
+        ):
+            self.entity.process_update(
+                status.InputSource(Code.SLI, b"10", InputSource("10"))
+            )
+        self.assertIsNone(self.entity.media_title)
+        self.assertIsNone(self.entity.media_artist)
+        self.assertIsNone(self.entity.media_image_url)

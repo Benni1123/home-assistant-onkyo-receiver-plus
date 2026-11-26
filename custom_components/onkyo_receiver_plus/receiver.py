@@ -66,8 +66,10 @@ class ReceiverManager:
         self.info = info
         self.callbacks = Callbacks()
         self._started = asyncio.Event()
+        self._task: asyncio.Task | None = None
         self.input_names: dict[InputSource, str] = {}
         self.hdmi_ports: dict[InputSource, int] = {}
+        self.presets: dict[int, dict[str, str | int]] = {}
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -88,6 +90,7 @@ class ReceiverManager:
         manager_task = self.entry.async_create_background_task(
             self.hass, self._run(), "run_connection"
         )
+        self._task = manager_task
         wait_for_started_task = asyncio.create_task(self._started.wait())
         done, _ = await asyncio.wait(
             (manager_task, wait_for_started_task), return_when=asyncio.FIRST_COMPLETED
@@ -118,12 +121,16 @@ class ReceiverManager:
                     while message := await self.receiver.read():
                         await self.on_update(message)
 
-                reconnect = True
-
+            except (OSError, TimeoutError):
+                if not self._started.is_set():
+                    raise
+                _LOGGER.warning("Receiver connection lost; retrying", exc_info=True)
             finally:
                 self.connected = False
                 _LOGGER.info("Disconnected: %s", self.info)
                 await self.on_disconnect()
+            reconnect = True
+            await asyncio.sleep(2)
 
     async def on_connect(self, reconnect: bool) -> None:
         """Receiver (re)connected."""
@@ -138,18 +145,35 @@ class ReceiverManager:
 
     async def on_disconnect(self) -> None:
         """Receiver disconnected."""
-        for callback in self.callbacks.disconnect:
-            await callback()
+        for callback in tuple(self.callbacks.disconnect):
+            try:
+                await callback()
+            except Exception:
+                _LOGGER.exception("Receiver disconnect callback failed")
 
     async def on_update(self, message: Status) -> None:
         """New message from the receiver."""
-        for callback in self.callbacks.update:
-            await callback(message)
+        for callback in tuple(self.callbacks.update):
+            try:
+                await callback(message)
+            except Exception:
+                _LOGGER.exception("Receiver update callback failed: %r", callback)
 
     async def write(self, message: Instruction) -> None:
         """Write message to the receiver."""
-        assert self.receiver is not None
+        if not self.connected or self.receiver is None:
+            raise OSError("Receiver is disconnected")
         await self.receiver.write(message)
+
+    async def async_stop(self) -> None:
+        """Close and await the old socket task before a reload creates another."""
+        if self._task is not None:
+            self._task.cancel()
+            await asyncio.gather(self._task, return_exceptions=True)
+            self._task = None
+        self.connected = False
+        self.receiver = None
+        self.callbacks.clear()
 
     def start_unloading(self) -> None:
         """Start unloading."""

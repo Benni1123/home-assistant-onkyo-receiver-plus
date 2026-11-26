@@ -72,6 +72,20 @@ class RemoteTest(unittest.IsolatedAsyncioTestCase):
         player.async_select_source.assert_awaited_once_with("HDMI 1 / Google TV")
         self.manager.write.assert_not_awaited()
 
+    async def test_home_assistant_service_style_keyword_call(self):
+        # remote.send_command delivers service data as kwargs with `command`.
+        await self.remote.async_send_command(command=["ok"], num_repeats=1)
+        await self.remote.async_send_command(command="back")
+        self.assertEqual(
+            [item.args[0] for item in self.manager.write.await_args_list],
+            [RawInstruction(b"OSD", b"ENTER"), RawInstruction(b"OSD", b"EXIT")],
+        )
+
+    async def test_missing_command_is_rejected(self):
+        with self.assertRaises(ServiceValidationError):
+            await self.remote.async_send_command()
+        self.manager.write.assert_not_awaited()
+
     async def test_standby_blocks_menu_commands_but_allows_power_on(self):
         await self.remote._on_update(status.Power(Code.PWR, b"00", status.Power.Param.STANDBY))
         self.assertFalse(self.remote.is_on)

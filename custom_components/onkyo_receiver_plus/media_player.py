@@ -3,6 +3,7 @@
 import asyncio
 from datetime import datetime
 import logging
+from time import monotonic_ns
 from typing import TYPE_CHECKING, Any, override
 
 from aioonkyo import Code, Kind, Status, Zone, command, query, status
@@ -10,6 +11,7 @@ from aioonkyo.instruction import RawInstruction
 
 from homeassistant.components.media_player import (
     BrowseMedia,
+    MediaClass,
     MediaPlayerDeviceClass,
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
@@ -43,6 +45,7 @@ from .const import (
     VolumeResolution,
 )
 from .receiver import ReceiverManager
+from .album_art import async_fetch_artwork
 from .source_names import (
     DEVICE_INFO_CODE,
     HDMI_ASSIGNMENT_CODE,
@@ -51,8 +54,11 @@ from .source_names import (
     apply_input_names,
     parse_hdmi_assignments,
     parse_input_names,
+    parse_presets,
 )
-from .tunein import CONTENT_TYPE as TUNEIN_CONTENT_TYPE, TuneIn
+from .dab import CONTENT_TYPE as DAB_CONTENT_TYPE, ROOT_ID as DAB_ROOT_ID, DabRadio
+from .fm import CONTENT_TYPE as FM_CONTENT_TYPE, ROOT_ID as FM_ROOT_ID, FmStations
+from .tunein import CONTENT_TYPE as TUNEIN_CONTENT_TYPE, NET, TuneIn
 from .util import get_meaning
 
 if TYPE_CHECKING:
@@ -62,6 +68,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 DATA_MP_ENTITIES: HassKey[dict[str, dict[Zone, OnkyoMediaPlayer]]] = HassKey(DOMAIN)
+DATA_RADIO: HassKey[dict[str, tuple[FmStations, DabRadio | None]]] = HassKey(
+    f"{DOMAIN}_radio"
+)
 
 
 SUPPORTED_FEATURES_BASE = (
@@ -120,6 +129,9 @@ VIDEO_INFORMATION_MAPPING = [
 ]
 
 
+NET_META_CODES = {b"NTI", b"NAT", b"NAL", b"NJA"}
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: OnkyoConfigEntry,
@@ -148,6 +160,12 @@ async def async_setup_entry(
     can_read_hdmi_ports = manager.info.model_name.upper() == "TX-NR6050"
     show_hdmi_ports = entry.options.get(OPTION_SHOW_HDMI_PORTS, True)
     sound_modes = data.sound_modes
+    fm_stations = data.fm
+    dab_radio = data.dab
+    hass.data.setdefault(DATA_RADIO, {})[entry.entry_id] = (fm_stations, dab_radio)
+    entry.async_on_unload(
+        lambda: hass.data.get(DATA_RADIO, {}).pop(entry.entry_id, None)
+    )
 
     async def connect_callback(reconnect: bool) -> None:
         await manager.write(RawInstruction(DEVICE_INFO_CODE, b"QSTN"))
@@ -186,11 +204,18 @@ async def async_setup_entry(
             if message.raw_code == DEVICE_INFO_CODE:
                 if reported := parse_input_names(message.parameter):
                     manager.input_names = reported
-                    refresh_source_names()
+                manager.presets = parse_presets(message.parameter)
+                refresh_source_names()
             elif can_read_hdmi_ports and message.raw_code == HDMI_ASSIGNMENT_CODE:
                 if (reported_ports := parse_hdmi_assignments(message.parameter)) is not None:
                     manager.hdmi_ports = reported_ports
                     refresh_source_names()
+            elif message.raw_code in NET_META_CODES:
+                if (main := entities.get(Zone.MAIN)) is not None and main.enabled:
+                    main.update_net_media(message.raw_code, message.parameter)
+            elif message.raw_code in (b"DSN", b"TUN"):
+                if (main := entities.get(Zone.MAIN)) is not None and main.enabled:
+                    main.update_tuner_media(message.raw_code, message.parameter)
             return
 
         zone = message.zone
@@ -199,6 +224,11 @@ async def async_setup_entry(
         if entity is not None:
             if entity.enabled:
                 entity.process_update(message)
+                if zone is Zone.MAIN and isinstance(message, status.InputSource):
+                    if message.param == InputSource.DAB:
+                        await manager.write(RawInstruction(b"DSN", b"QSTN"))
+                    elif message.param == InputSource.FM:
+                        await manager.write(RawInstruction(b"TUN", b"QSTN"))
         elif not isinstance(message, status.NotAvailable):
             # When we receive a valid status for a zone, then
             # that zone is available on the receiver,
@@ -221,6 +251,8 @@ async def async_setup_entry(
                 sources=data.sources,
                 sound_modes=sound_modes,
                 tunein_supported=zone is Zone.MAIN and can_read_hdmi_ports,
+                fm_stations=fm_stations,
+                dab_radio=dab_radio,
             )
             if sources != data.sources or unprefixed_sources != data.sources:
                 zone_entity.update_source_names(sources, unprefixed_sources)
@@ -238,6 +270,7 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
     _attr_device_class = MediaPlayerDeviceClass.RECEIVER
     _attr_should_poll = False
     _attr_has_entity_name = True
+    _attr_media_image_remotely_accessible = False
 
     _supports_volume: bool = False
     # None means no technical possibility of support
@@ -260,6 +293,8 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
         sources: dict[InputSource, str],
         sound_modes: dict[ListeningMode, str],
         tunein_supported: bool = False,
+        fm_stations: FmStations | None = None,
+        dab_radio: DabRadio | None = None,
     ) -> None:
         """Initialize the Onkyo Receiver."""
         self._manager = manager
@@ -279,8 +314,11 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
         self._volume_ui_feedback_after = 0.0
         self._ramp_task: asyncio.Task[None] | None = None
         self._volume_reports: asyncio.Queue[int] | None = None
+        self._net_meta_unsub: CALLBACK_TYPE | None = None
 
         self._current_source: InputSource | None = None
+        self._tuner_station_name: str | None = None
+        self._fm_frequency: int | None = None
         self._set_source_mapping(sources)
         self._original_source_mapping = self._rev_source_mapping.copy()
         self._unprefixed_source_mapping: dict[str, InputSource] = {}
@@ -300,6 +338,10 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
 
         self._attr_supported_features = SUPPORTED_FEATURES_BASE
         self._tunein = TuneIn(manager, self._set_network_title) if tunein_supported else None
+        # DAB+ and the FM station book always act on the main zone, so only the
+        # main-zone player offers them.
+        self._fm = fm_stations if zone is Zone.MAIN else None
+        self._dab = dab_radio if zone is Zone.MAIN else None
         if self._tunein is not None:
             self._attr_supported_features |= (
                 MediaPlayerEntityFeature.BROWSE_MEDIA | MediaPlayerEntityFeature.SEARCH_MEDIA
@@ -318,6 +360,9 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
     @override
     async def async_added_to_hass(self) -> None:
         """Entity has been added to hass."""
+        if self._fm is not None:
+            self._fm.listeners.append(self.async_write_ha_state)
+            self.async_on_remove(lambda: self._fm.listeners.remove(self.async_write_ha_state))
         await self.query_state()
 
     @override
@@ -330,6 +375,39 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
     def available(self) -> bool:
         """Return if entity is available."""
         return self._manager.connected
+
+    @property
+    def media_title(self) -> str | None:
+        """Prefer track metadata; otherwise identify the actual tuned station."""
+        if self.state == MediaPlayerState.OFF:
+            return None
+        if self._attr_media_title:
+            return self._attr_media_title
+        if self._current_source == InputSource.DAB:
+            return self._tuner_station_name
+        if self._current_source == InputSource.FM and self._fm_frequency is not None:
+            if self._fm is not None:
+                for station in self._fm.stations:
+                    if round(float(station["freq"]) * 100) == self._fm_frequency:
+                        return str(station["name"])
+            for preset in getattr(self._manager, "presets", {}).values():
+                if preset.get("freq") == self._fm_frequency and preset.get("name"):
+                    return str(preset["name"])
+            return f"FM {self._fm_frequency / 100:g} MHz"
+        return None
+
+    def update_tuner_media(self, code: bytes, parameter: bytes) -> None:
+        """Receive station metadata without stealing a NET track title."""
+        if code == b"DSN" and self._current_source == InputSource.DAB:
+            self._tuner_station_name = parameter.decode("utf-8", "replace").strip() or None
+        elif code == b"TUN" and self._current_source == InputSource.FM:
+            if not parameter.isdigit():
+                return
+            self._fm_frequency = int(parameter)
+        else:
+            return
+        if self.hass is not None and self.enabled:
+            self.async_write_ha_state()
 
     async def query_state(self) -> None:
         """Query the receiver for all the info, that we care about."""
@@ -349,6 +427,9 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
         """Cancel the pending work."""
         self._cancel_ramp()
         self._device_volume = None
+        if self._net_meta_unsub is not None:
+            self._net_meta_unsub()
+            self._net_meta_unsub = None
         if self._query_state_unsub is not None:
             self._query_state_unsub()
             self._query_state_unsub = None
@@ -605,11 +686,29 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
     async def async_play_media(
         self, media_type: MediaType | str, media_id: str, **kwargs: Any
     ) -> None:
-        """Play internet radio or a hardware tuner preset."""
+        """Play internet radio, tuner presets or a hardware tuner frequency."""
         if media_type == TUNEIN_CONTENT_TYPE and self._tunein is not None:
             if self.state != MediaPlayerState.ON:
                 raise HomeAssistantError("Turn on the receiver before playing TuneIn.")
             await self._tunein.play(media_id)
+            return
+        if media_type == DAB_CONTENT_TYPE and self._dab is not None:
+            if self.state != MediaPlayerState.ON:
+                raise HomeAssistantError("Turn on the receiver before playing DAB+.")
+            await self._dab.async_play(media_id.removeprefix("dab:"))
+            return
+        if media_type == FM_CONTENT_TYPE and self._fm is not None:
+            if self.state != MediaPlayerState.ON:
+                raise HomeAssistantError("Turn on the receiver before playing FM.")
+            value = media_id.removeprefix("fm:")
+            if value.startswith("station:"):
+                await self._fm.async_play(value)
+                return
+            try:
+                index = int(value)
+            except ValueError as err:
+                raise HomeAssistantError("Invalid FM station.") from err
+            await self._fm.async_play(index)
             return
         if media_type.lower() != "radio":
             # Stream URLs are not an eISCP capability; HA's Cast player for
@@ -638,6 +737,63 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
         if self.hass is not None and self.enabled:
             self.async_write_ha_state()
 
+    def _clear_net_media(self) -> None:
+        """Drop NET playback metadata, e.g. after leaving NET or standby."""
+        self._attr_media_title = None
+        self._attr_media_artist = None
+        self._attr_media_album_name = None
+        self._attr_media_image_url = None
+        self._attr_media_image_hash = None
+
+    async def async_get_media_image(self) -> tuple[bytes | None, str | None]:
+        """Proxy the AVR's artwork, stripping its nonstandard CGI preamble."""
+        if self.media_image_url is None:
+            return None, None
+        return await async_fetch_artwork(self.hass, self.media_image_url)
+
+    def update_net_media(self, code: bytes, parameter: bytes) -> None:
+        """Apply raw NET metadata reported by the main zone."""
+        text = parameter.decode("utf-8", "replace").strip()
+        if self._current_source != NET:
+            return
+        if code == b"NTI":
+            if self._current_source != NET:
+                return
+            self._attr_media_title = text or None
+            self._attr_media_image_hash = str(monotonic_ns())
+            # The receiver serves the current artwork anonymously on this URL.
+            self._attr_media_image_url = (
+                f"http://{self._manager.info.host}/album_art.cgi" if text else None
+            )
+            # Do not query NTI again in response to NTI: that creates an
+            # endless metadata polling loop on the shared connection.
+        elif code == b"NAT":
+            self._attr_media_artist = text or None
+        elif code == b"NAL":
+            self._attr_media_album_name = text or None
+        elif code == b"NJA":
+            # NJA can be "LINK" or "2-http://host/album_art.cgi".
+            # Always use our own receiver endpoint, not a received arbitrary URL.
+            self._attr_media_image_url = f"http://{self._manager.info.host}/album_art.cgi"
+            self._attr_media_image_hash = str(monotonic_ns())
+        if self.hass is not None and self.enabled:
+            self.async_write_ha_state()
+
+    def _schedule_net_meta_query(self) -> None:
+        """Fetch title, artist, album and artwork after the receiver settles."""
+        if self._net_meta_unsub is not None:
+            self._net_meta_unsub()
+            self._net_meta_unsub = None
+
+        async def _query(_now: datetime) -> None:
+            self._net_meta_unsub = None
+            if (self._manager.connected and self.state == MediaPlayerState.ON
+                    and self._current_source == NET):
+                for code in NET_META_CODES:
+                    await self._manager.write(RawInstruction(code, b"QSTN"))
+
+        self._net_meta_unsub = async_call_later(self.hass, 0.8, _query)
+
     @override
     async def async_browse_media(
         self,
@@ -648,7 +804,39 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
         if self._tunein is None:
             raise BrowseError("TuneIn browsing is unavailable on this receiver.")
         if not media_content_id:
-            return self._tunein.root()
+            root = self._tunein.root()
+            if self._dab is not None:
+                root.children.append(BrowseMedia(
+                    media_class=MediaClass.DIRECTORY,
+                    media_content_id=DAB_ROOT_ID,
+                    media_content_type=DAB_CONTENT_TYPE,
+                    title="DAB+ Radio",
+                    can_play=False,
+                    can_expand=True,
+                    can_search=True,
+                ))
+            if self._fm is not None:
+                root.children.append(BrowseMedia(
+                    media_class=MediaClass.DIRECTORY,
+                    media_content_id=FM_ROOT_ID,
+                    media_content_type=FM_CONTENT_TYPE,
+                    title="FM Radio (own list)",
+                    can_play=False,
+                    can_expand=True,
+                    can_search=True,
+                ))
+            return root
+        if media_content_type == DAB_CONTENT_TYPE and self._dab is not None:
+            if self.state != MediaPlayerState.ON:
+                raise BrowseError("Turn on the receiver before opening DAB+.")
+            try:
+                return await self._dab.async_browse(media_content_id)
+            except HomeAssistantError as err:
+                raise BrowseError(str(err)) from err
+        if media_content_type == FM_CONTENT_TYPE and self._fm is not None:
+            # The FM station book lives in Home Assistant, not on the
+            # receiver, so browsing it works while the receiver is off.
+            return await self._fm.async_browse()
         if media_content_type != TUNEIN_CONTENT_TYPE:
             raise BrowseError("Unsupported media type.")
         if self.state != MediaPlayerState.ON:
@@ -660,7 +848,16 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
 
     @override
     async def async_search_media(self, query: SearchMediaQuery) -> SearchMedia:
-        """Search the current TuneIn category, or Local Radio and favorites."""
+        """Search the current TuneIn category, DAB+ services or the FM book."""
+        if query.media_content_type == FM_CONTENT_TYPE and self._fm is not None:
+            return SearchMedia(result=(await self._fm.async_search(query.search_query)).children)
+        if query.media_content_type == DAB_CONTENT_TYPE and self._dab is not None:
+            try:
+                return SearchMedia(result=(await self._dab.async_search(
+                    query.search_query, query.media_content_id or DAB_ROOT_ID
+                )).children)
+            except HomeAssistantError as err:
+                raise SearchError(str(err)) from err
         if self._tunein is None or self.state != MediaPlayerState.ON:
             raise SearchError("Turn on a TuneIn-capable receiver before searching.")
         if query.media_content_type not in (None, "", TUNEIN_CONTENT_TYPE):
@@ -680,6 +877,7 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
             case status.Power(param=status.Power.Param.STANDBY):
                 self._cancel_ramp()
                 self._device_volume = None
+                self._clear_net_media()
                 self._attr_state = MediaPlayerState.OFF
 
             case status.Volume(param=volume):
@@ -705,7 +903,14 @@ class OnkyoMediaPlayer(MediaPlayerEntity):
                 self._attr_is_volume_muted = bool(muting is status.Muting.Param.ON)
 
             case status.InputSource(param=source):
+                if source != self._current_source:
+                    self._tuner_station_name = None
+                    self._fm_frequency = None
                 self._current_source = source
+                if source != NET:
+                    self._clear_net_media()
+                else:
+                    self._schedule_net_meta_query()
                 if source in self._source_mapping:
                     self._attr_source = self._source_mapping[source]
                 else:

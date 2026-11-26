@@ -18,15 +18,23 @@ Zones, controls, and sensors are grouped under one receiver device in Home Assis
 
 | Area | What you can do |
 | --- | --- |
-| Media player | Control power, mute, volume, inputs, and listening modes. Choose immediate or stepwise volume on the standard Home Assistant slider. Both modes respect the configured volume limit. |
+| Media player | Control power, mute, volume, inputs, and listening modes. Choose immediate or stepwise volume on the standard Home Assistant slider. Both modes respect the configured volume limit. Shows title, artist, album and artwork for NET sources such as TuneIn or Spotify. |
 | Input names | Import receiver names and reported HDMI assignments, such as **HDMI 1 / Media Player**. Set your own labels in Home Assistant without renaming inputs on the receiver. |
 | Sound | Adjust temporary subwoofer level, bass, treble, vocal level, A/V sync, and Late Night mode. Select AccuEQ, manual EQ presets, and the digital filter where available. |
 | Remote | Navigate the receiver’s on-screen menus, select inputs, adjust volume, or send playback keys to compatible NET/USB sources. |
 | TuneIn | Browse receiver-reported categories and favorites, search within a category, and start internet radio stations on the TX-NR6050. |
-| Other controls | Switch HDMI outputs, set display brightness or a sleep timer, and select radio presets or FM frequency. |
+| Other controls | Switch HDMI outputs, set display brightness or a sleep timer, select radio presets with their receiver-reported names, or tune the FM frequency. |
 | Diagnostics | Read audio/video signal details, internal temperature, firmware version, configured speakers, HDMI output routing, and Network Standby status. |
 
-The temporary subwoofer trim is separate from speaker calibration and resets in standby. Permanent speaker calibration and separate front L/R trim are not supported. The remote can send menu keys but cannot determine which menu item is highlighted.
+The temporary subwoofer trim is separate from speaker calibration and resets in standby. Permanent speaker calibration and separate front L/R trim are not supported. The remote can send menu keys but cannot determine which menu item is highlighted. The receiver exposes no FM/DAB station lists — only the presets stored on the AVR itself.
+
+## DAB+ and FM radio browsing
+
+**DAB+ Radio** contains two folders: **All stations** lists the cached service list (selection by muted stepping). **Presets** lists actual DAB presets stored on the AVR, for example **14: SPUTNIK**. Presets are recalled directly by number, without stepping or muting, and are read afresh when the folder is opened.
+
+On the receiver's **Home Assistant device page**, press **Read DAB service list (muted)** while the receiver is on. The integration reads existing DAB services by stepping silently in the background; **DAB list status** shows progress or the actual error. This does not start an over-the-air DAB scan. The previous source and mute state are restored afterwards. Browse the cached list under **Browse media → DAB+ Radio**. Station selection also steps muted. An incomplete enumeration does not overwrite the previous list.
+
+For **FM Radio (own list)**, use the device-page **FM station name** and **FM station frequency** fields, then **Save FM station**. Select a saved station under **Edit FM station** to load its fields; save again to update its frequency, or press **Delete FM station**. Stations are stored persistently in HA; the AVR's hardware presets are not modified. The `save_fm_station` / `delete_fm_station` actions remain available for automations. Playing a station from the media browser selects FM and tunes the frequency.
 
 ## Streaming URLs via Google Cast
 

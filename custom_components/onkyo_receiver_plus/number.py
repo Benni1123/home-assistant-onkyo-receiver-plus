@@ -17,6 +17,7 @@ from .extra_entity import OnkyoExtraEntity
 from .extras import ReceiverExtras, integer_parameter
 from .receiver import ReceiverManager
 from .subwoofer import LEVEL_STEP, MAX_LEVEL, MIN_LEVEL, decode_level, encode_level
+from .radio_controls import FmFrequency
 
 if TYPE_CHECKING:
     from . import OnkyoConfigEntry
@@ -31,6 +32,8 @@ async def async_setup_entry(
 ) -> None:
     """Set up the verified subwoofer control."""
     manager = entry.runtime_data.manager
+    if getattr(entry.runtime_data, "fm", None) is not None:
+        async_add_entities([FmFrequency(entry.runtime_data)])
     if manager.info.model_name.upper() == "TX-NR6050":
         async_add_entities([OnkyoSubwooferLevel(manager)])
     if (extras := entry.runtime_data.extras) is not None:

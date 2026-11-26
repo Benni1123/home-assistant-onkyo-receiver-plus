@@ -19,6 +19,8 @@ from .const import (
 )
 from .coordinator import ChannelMutingCoordinator
 from .extras import ReceiverExtras
+from .fm import FmStations
+from .dab import DabRadio
 from .receiver import ReceiverManager, async_interview
 from .services import async_setup_services
 
@@ -26,7 +28,7 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [
     Platform.BINARY_SENSOR, Platform.MEDIA_PLAYER, Platform.NUMBER, Platform.REMOTE, Platform.SELECT,
-    Platform.SENSOR, Platform.SWITCH,
+    Platform.SENSOR, Platform.SWITCH, Platform.TEXT, Platform.BUTTON,
 ]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -41,6 +43,8 @@ class OnkyoData:
     sound_modes: dict[ListeningMode, str]
     channel_muting_coordinator: ChannelMutingCoordinator
     extras: ReceiverExtras | None
+    fm: FmStations | None = None
+    dab: DabRadio | None = None
 
 
 type OnkyoConfigEntry = ConfigEntry[OnkyoData]
@@ -89,6 +93,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: OnkyoConfigEntry) -> Non
         ReceiverExtras(manager) if info.model_name.upper() == "TX-NR6050" else None,
     )
 
+    fm = FmStations(hass, entry.entry_id, manager)
+    dab = DabRadio(hass, entry.entry_id, manager) if info.model_name.upper() == "TX-NR6050" else None
+    await fm.async_load()
+    if dab is not None:
+        await dab.async_load()
+    entry.runtime_data.fm = fm
+    entry.runtime_data.dab = dab
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     if error := await manager.start():
@@ -104,6 +115,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OnkyoConfigEntry) -> Non
 
 async def async_unload_entry(hass: HomeAssistant, entry: OnkyoConfigEntry) -> None:
     """Unload Onkyo config entry."""
-    entry.runtime_data.manager.start_unloading()
-
+    if entry.runtime_data.dab is not None:
+        await entry.runtime_data.dab.async_stop()
     await hass.config_entries.async_unload_platforms_or_raise(entry, PLATFORMS)
+    await entry.runtime_data.manager.async_stop()

@@ -9,6 +9,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .extra_entity import OnkyoExtraEntity
 from .extras import ReceiverExtras
+from .radio_controls import DabScanStatus
 
 if TYPE_CHECKING:
     from . import OnkyoConfigEntry
@@ -18,6 +19,8 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: OnkyoConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
+    if getattr(entry.runtime_data, "dab", None) is not None:
+        async_add_entities([DabScanStatus(entry.runtime_data)])
     if (extras := entry.runtime_data.extras) is not None:
         async_add_entities(
             OnkyoReceiverSensor(extras, key)

@@ -8,6 +8,7 @@ from custom_components.onkyo_receiver_plus.source_names import (
     apply_input_names,
     parse_hdmi_assignments,
     parse_input_names,
+    parse_presets,
 )
 from custom_components.onkyo_receiver_plus.util import get_meaning
 
@@ -25,6 +26,28 @@ class SourceNamesTest(unittest.TestCase):
             ),
             {InputSource("10"): "Google TV", InputSource("2B"): "NET & Radio"},
         )
+
+    def test_parse_preset_table(self):
+        presets = parse_presets(
+            b'<response status="ok"><device><presetlist>'
+            b'<preset id="1" band="0" freq="9830" name="hr3" />'
+            b'<preset id="2" band="2" freq="0" name="DAB Plus Rock" />'
+            b'<preset id="3" band="0" freq="0" name="" />'
+            b'<preset id="0e" band="2" freq="0" name="SPUTNIK   " />'
+            b'<preset id="14" band="0" freq="9000" name="Slot 20" />'
+            b'<preset id="28" band="2" freq="0" name="Slot 40" />'
+            b'<preset id="41" band="0" freq="1" name="Too high" />'
+            b'<preset id="x" band="0" freq="1" name="Bad" />'
+            b'</presetlist></device></response>'
+        )
+        self.assertEqual(presets[1], {"band": "0", "freq": 9830, "name": "hr3"})
+        self.assertEqual(presets[2]["name"], "DAB Plus Rock")
+        self.assertEqual(presets[3]["name"], "")
+        self.assertEqual(presets[14]["name"], "SPUTNIK")
+        self.assertEqual(presets[20]["name"], "Slot 20")
+        self.assertEqual(presets[40]["name"], "Slot 40")
+        self.assertNotIn(41, presets)
+        self.assertNotIn("x", presets)
 
     def test_manual_name_and_selection_are_preserved(self):
         disc, game, aux = map(InputSource, ("10", "02", "03"))

@@ -18,15 +18,23 @@ Zonen, Bedienelemente und Sensoren werden in Home Assistant unter einem Receiver
 
 | Bereich | Funktionen |
 | --- | --- |
-| Medienplayer | Ein/Aus, Stummschaltung, Lautstärke, Eingänge und Hörmodi. Der normale HA-Slider kann sofort oder schrittweise regeln. Das eingestellte Lautstärkelimit gilt in beiden Modi. |
+| Medienplayer | Ein/Aus, Stummschaltung, Lautstärke, Eingänge und Hörmodi. Der normale HA-Slider kann sofort oder schrittweise regeln. Das eingestellte Lautstärkelimit gilt in beiden Modi. Zeigt Titel, Interpret, Album und Cover für NET-Quellen wie TuneIn oder Spotify. |
 | Eingangsnamen | Namen und gemeldete HDMI-Zuordnungen übernehmen, z. B. **HDMI 1 / Medienplayer**. Eigene Namen nur für HA vergeben, ohne die Bezeichnung am Receiver zu ändern. |
 | Klang | Temporären Subwoofer-Pegel, Bass, Höhen, Dialogpegel, A/V-Sync und Nachtmodus einstellen. Je nach Modell und Hörmodus stehen AccuEQ, manuelle EQ-Presets und der Digitalfilter zur Verfügung. |
 | Fernbedienung | Das Receiver-Menü bedienen, Eingänge wählen, Lautstärke ändern und Wiedergabetasten an kompatible NET-/USB-Quellen senden. |
 | TuneIn | Am TX-NR6050 die vom Receiver gemeldeten Kategorien und Favoriten öffnen, im gewählten Ordner suchen und Internetradio starten. |
-| Weitere Regler | HDMI-Ausgang, Display-Helligkeit, Einschlaftimer, Radio-Speicherplätze und UKW-Frequenz einstellen. |
+| Weitere Regler | HDMI-Ausgang, Display-Helligkeit, Einschlaftimer, Radio-Speicherplätze mit den vom Receiver gemeldeten Namen und UKW-Frequenz einstellen. |
 | Diagnose | Audio-/Video-Signal, interne Temperatur, Firmware, Lautsprecherkonfiguration, HDMI-Zonenzuordnung und Netzwerk-Standby auslesen. |
 
-Der temporäre Subwoofer-Pegel ist von der Einmessung getrennt und wird im Standby zurückgesetzt. Die dauerhafte Lautsprecherkalibrierung und getrennte Front-L/R-Pegel werden nicht unterstützt. Die Fernbedienung kann Menütasten senden, aber nicht erkennen, welcher Menüpunkt ausgewählt ist.
+Der temporäre Subwoofer-Pegel ist von der Einmessung getrennt und wird im Standby zurückgesetzt. Die dauerhafte Lautsprecherkalibrierung und getrennte Front-L/R-Pegel werden nicht unterstützt. Die Fernbedienung kann Menütasten senden, aber nicht erkennen, welcher Menüpunkt ausgewählt ist. Der Receiver liefert keine FM/DAB-Senderlisten – nur die am Gerät gespeicherten Presets.
+
+## DAB+ und FM-Radio durchsuchen
+
+Unter **DAB+ Radio** gibt es zwei Ordner: **Alle Sender** enthält die eingelesene vollständige Senderliste (Auswahl durch stummes Durchsteppen). **Presets** zeigt die echten DAB-Speicherplätze des AVR, beispielsweise **14: SPUTNIK**. Diese werden direkt über die Speichernummer angewählt, ohne Durchsteppen oder Stummschaltung. Neue Presets werden beim Öffnen des Ordners frisch vom Receiver gelesen.
+
+Auf der **HA-Geräteseite des Receivers** bei eingeschaltetem Receiver **DAB-Senderliste einlesen (stumm)** drücken. Die Integration liest die vorhandenen DAB-Sender im Hintergrund durch stummgeschaltetes Durchsteppen ein. **DAB-Senderliste Status** zeigt Fortschritt oder den tatsächlichen Fehler. Dies ist kein neuer Antennen-Suchlauf. Danach werden Quelle und Stummschaltung wiederhergestellt. Die gespeicherte Liste findest du unter **Medien durchsuchen → DAB+ Radio**. Auch beim Senderwechsel wird stumm durchgestept. Ein unvollständiger Durchlauf überschreibt die vorherige Liste nicht.
+
+Für **FM Radio (own list)** auf der Geräteseite **UKW-Sendername** und **UKW-Speicherfrequenz** ausfüllen, dann **UKW-Sender speichern** drücken. Über **UKW-Sender bearbeiten** einen gespeicherten Sender in die Felder laden; erneut speichern ändert seine Frequenz, **UKW-Sender löschen** entfernt ihn. Die Liste wird dauerhaft in HA gespeichert; die Hardware-Presets des Receivers bleiben unverändert. Die Aktionen `save_fm_station` / `delete_fm_station` bleiben für Automationen verfügbar. Beim Abspielen im Medien-Browser schaltet der Receiver auf FM und stimmt die Frequenz ab.
 
 ## Stream-URLs über Google Cast
 

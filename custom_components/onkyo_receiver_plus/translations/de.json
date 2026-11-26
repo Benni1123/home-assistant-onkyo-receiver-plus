@@ -90,7 +90,16 @@
     }
   },
   "entity": {
+    "text": {
+      "fm_station_name": {"name": "UKW-Sendername"}
+    },
+    "button": {
+      "fm_station_save": {"name": "UKW-Sender speichern"},
+      "fm_station_delete": {"name": "UKW-Sender löschen"},
+      "dab_read_services": {"name": "DAB-Senderliste einlesen (stumm)"}
+    },
     "number": {
+      "fm_station_frequency": {"name": "UKW-Speicherfrequenz"},
       "subwoofer_level": {
         "name": "Subwoofer-Pegel (temporär)"
       },
@@ -111,6 +120,7 @@
       "hdmi_audio_out": {"name": "HDMI-Audioausgabe"}
     },
     "select": {
+      "fm_station_edit": {"name": "UKW-Sender bearbeiten"},
       "dimmer": {
         "name": "Display-Helligkeit",
         "state": {"bright": "Hell", "dim": "Gedimmt", "dark": "Dunkel"}
@@ -138,9 +148,13 @@
       "stereo_assign": {
         "name": "Stereo-Lautsprecher",
         "state": {"front": "Front", "surround": "Surround", "surround_back": "Surround Back", "height_1": "Höhe 1", "height_2": "Höhe 2"}
+      },
+      "tuner_preset": {
+        "name": "Radio-Speicherplätze"
       }
     },
     "sensor": {
+      "dab_scan_status": {"name": "DAB-Senderliste Status"},
       "audio_signal": {"name": "Audiosignal"},
       "audio_input_channels": {"name": "Audio-Eingangskanäle"},
       "audio_output_channels": {"name": "Audio-Ausgangskanäle"},
@@ -158,6 +172,25 @@
     "binary_sensor": {
       "network_standby": {"name": "Netzwerk-Standby"},
       "dts_dialog_supported": {"name": "DTS:X Dialog Control verfügbar"}
+    }
+  },
+  "services": {
+    "save_fm_station": {
+      "name": "UKW-Sender speichern",
+      "description": "Legt einen Sender in der eigenen Senderliste der Integration ab oder ersetzt ihn. Der Name ist der eindeutige Schlüssel; die Geräte-Presets bleiben unverändert.",
+      "fields": {
+        "entity_id": {"name": "Medienplayer", "description": "Der Onkyo-Receiver-Plus-Medienplayer."},
+        "name": {"name": "Name", "description": "Sendername, wie er in Home Assistant erscheint."},
+        "frequency": {"name": "Frequenz (MHz)", "description": "UKW-Frequenz zwischen 87,5 und 108,0 MHz im 50-kHz-Raster."}
+      }
+    },
+    "delete_fm_station": {
+      "name": "UKW-Sender löschen",
+      "description": "Entfernt einen Sender aus der eigenen Senderliste der Integration.",
+      "fields": {
+        "entity_id": {"name": "Medienplayer", "description": "Der Onkyo-Receiver-Plus-Medienplayer."},
+        "name": {"name": "Name", "description": "Name des zu löschenden Senders."}
+      }
     }
   }
 }

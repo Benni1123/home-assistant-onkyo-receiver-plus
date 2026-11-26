@@ -1,5 +1,6 @@
 """Import the receiver's input labels from its eISCP device information."""
 
+import re
 from xml.etree import ElementTree
 
 from .const import InputSource
@@ -81,6 +82,28 @@ def parse_input_names(payload: bytes) -> dict[InputSource, str]:
         except ValueError:
             continue
     return names
+
+
+def parse_presets(payload: bytes) -> dict[int, dict[str, str | int]]:
+    """Read the tuner preset table from NRI XML, keeping raw band and frequency."""
+    root = _parse_device_xml(payload)
+    if root is None:
+        return {}
+    presets: dict[int, dict[str, str | int]] = {}
+    for preset in root.findall("./device/presetlist/preset"):
+        raw_id = preset.get("id", "")
+        if not re.fullmatch(r"[0-9A-Fa-f]{1,2}", raw_id):
+            continue
+        index = int(raw_id, 16)
+        if not 1 <= index <= 40:
+            continue
+        frequency = preset.get("freq", "0")
+        presets[index] = {
+            "band": preset.get("band", ""),
+            "freq": int(frequency) if frequency.isdecimal() else 0,
+            "name": preset.get("name", "").strip(),
+        }
+    return presets
 
 
 def apply_input_names(

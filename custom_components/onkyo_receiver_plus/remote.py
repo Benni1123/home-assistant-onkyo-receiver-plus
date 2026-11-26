@@ -133,13 +133,23 @@ class OnkyoRemote(RemoteEntity):
         else:
             await self._manager.write(command.Power(Zone.MAIN, command.Power.Param.STANDBY))
 
-    async def async_send_command(self, commands: Iterable[str], **kwargs: Any) -> None:
+    async def async_send_command(
+        self, command: Iterable[str] | str | None = None, **kwargs: Any
+    ) -> None:
         """Validate the whole sequence before sending any network key."""
+        # HA calls this entity service with keyword arguments from the service
+        # data, so `command` (singular) arrives as a keyword by default.
+        if command is None:
+            command = kwargs.get("command")
         if kwargs.get(ATTR_HOLD_SECS):
             raise ServiceValidationError("Use num_repeats instead of hold_secs for this remote.")
         parsed: list[tuple[str, str | None]] = []
-        if isinstance(commands, str):
-            commands = (commands,)
+        if command is None:
+            command = ()
+        if isinstance(command, str):
+            commands: Iterable[str] = (command,)
+        else:
+            commands = command
         for item in commands:
             key, colon, argument = item.strip().partition(":")
             key = key.strip().lower()

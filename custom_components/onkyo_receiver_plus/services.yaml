@@ -1,0 +1,53 @@
+save_fm_station:
+  name: Save FM station
+  description: >-
+    Adds or replaces a station in the integration's own FM station book. The
+    name is the unique key; the receiver's tuner presets are not modified.
+  fields:
+    entity_id:
+      name: Media player
+      description: The Onkyo Receiver Plus media player to tune.
+      required: true
+      example: media_player.tx_nr6050
+      selector:
+        entity:
+          integration: onkyo_receiver_plus
+          domain: media_player
+    name:
+      name: Name
+      description: Station name shown in Home Assistant.
+      required: true
+      example: radio SAW
+      selector:
+        text:
+    frequency:
+      name: Frequency (MHz)
+      description: FM frequency between 87.5 and 108.0 MHz in 50 kHz steps.
+      required: true
+      example: 94.45
+      selector:
+        number:
+          min: 87.5
+          max: 108
+          step: 0.05
+          mode: box
+delete_fm_station:
+  name: Delete FM station
+  description: Removes a station from the integration's own FM station book.
+  fields:
+    entity_id:
+      name: Media player
+      description: The Onkyo Receiver Plus media player.
+      required: true
+      example: media_player.tx_nr6050
+      selector:
+        entity:
+          integration: onkyo_receiver_plus
+          domain: media_player
+    name:
+      name: Name
+      description: Name of the station to remove.
+      required: true
+      example: radio SAW
+      selector:
+        text:

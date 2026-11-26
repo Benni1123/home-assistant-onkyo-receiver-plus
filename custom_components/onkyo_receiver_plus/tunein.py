@@ -352,10 +352,14 @@ class TuneIn:
         self._active = current, view.key
         for folder in path[len(current):]:
             await self._verify_row(view, folder)
+            expected_depth = view.depth + 1
             view = await self._list_view(
                 self._select_row(folder),
                 lambda candidate: candidate.service == b"0E" and candidate.mode in LIST_MODES
-                and candidate.title.casefold() == folder.title.casefold(),
+                # NLT titles may differ from the verified NLA row, e.g.
+                # "Dance " for "Dance & Electronic". Require the actual
+                # child layer instead of waiting for an impossible name.
+                and candidate.depth == expected_depth,
             )
             current = (*current, folder)
             self._active = current, view.key
