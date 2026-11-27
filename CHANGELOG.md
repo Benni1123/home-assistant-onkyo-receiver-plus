@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.8
+
+- Refresh receiver input names and HDMI assignments over the shared connection when opening options, instead of only displaying the startup cache.
+- Use receiver names as defaults for newly selected inputs when automatic name import is enabled; preserve custom HA aliases.
+- Expand the English and German documentation with the complete control inventory, radio device-page workflows, direct DAB presets, metadata/artwork, automation examples, Cast setup and current limitations.
+
 ## 0.5.7
 
 - Fix integration reloads and options changes failing during HA's on-unload cleanup: the radio cleanup callback now returns `None` instead of the removed FM/DAB object tuple.

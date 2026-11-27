@@ -8,7 +8,7 @@ import logging
 from typing import TYPE_CHECKING
 
 import aioonkyo
-from aioonkyo import Instruction, Receiver, ReceiverInfo, Status, connect, query
+from aioonkyo import Instruction, Receiver, ReceiverInfo, Status, connect, query, status
 from aioonkyo.instruction import RawInstruction
 
 from homeassistant.components import network
@@ -70,6 +70,46 @@ class ReceiverManager:
         self.input_names: dict[InputSource, str] = {}
         self.hdmi_ports: dict[InputSource, int] = {}
         self.presets: dict[int, dict[str, str | int]] = {}
+        self._catalog_lock = asyncio.Lock()
+
+    async def async_refresh_input_catalog(
+        self,
+    ) -> tuple[dict[InputSource, str], dict[InputSource, int]]:
+        """Refresh labels and HDMI assignments over the existing connection."""
+        async with self._catalog_lock:
+            if not self.connected:
+                return self.input_names.copy(), self.hdmi_ports.copy()
+            complete = asyncio.Event()
+            names_received = False
+            ports_received = self.info.model_name.upper() != "TX-NR6050"
+
+            async def receive(message: Status) -> None:
+                nonlocal names_received, ports_received
+                if isinstance(message, status.Raw):
+                    if message.raw_code == DEVICE_INFO_CODE:
+                        if names := parse_input_names(message.parameter):
+                            self.input_names = names
+                            names_received = True
+                    elif message.raw_code == HDMI_ASSIGNMENT_CODE:
+                        if (ports := parse_hdmi_assignments(message.parameter)) is not None:
+                            self.hdmi_ports = ports
+                            ports_received = True
+                if names_received and ports_received:
+                    complete.set()
+
+            self.callbacks.update.append(receive)
+            try:
+                async with asyncio.timeout(4):
+                    await self.write(RawInstruction(DEVICE_INFO_CODE, b"QSTN"))
+                    if not ports_received:
+                        await self.write(RawInstruction(HDMI_ASSIGNMENT_CODE, HDMI_ASSIGNMENT_QUERY))
+                    await complete.wait()
+            except (TimeoutError, OSError):
+                _LOGGER.debug("Input catalog refresh incomplete; using available values")
+            finally:
+                with contextlib.suppress(ValueError):
+                    self.callbacks.update.remove(receive)
+            return self.input_names.copy(), self.hdmi_ports.copy()
 
     @property
     def device_info(self) -> DeviceInfo:

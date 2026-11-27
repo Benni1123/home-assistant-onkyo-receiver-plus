@@ -422,6 +422,7 @@ class OnkyoOptionsFlowHandler(OptionsFlowWithReload):
     _data: dict[str, Any]
     _input_sources: dict[InputSource, str]
     _listening_modes: dict[ListeningMode, str]
+    _input_catalog: tuple[dict[InputSource, str], dict[InputSource, int]] | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -437,6 +438,13 @@ class OnkyoOptionsFlowHandler(OptionsFlowWithReload):
             },
             **entry_options,
         }
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        if self._input_catalog is None:
+            self._input_catalog = (
+                await runtime.manager.async_refresh_input_catalog()
+                if runtime is not None else ({}, {})
+            )
+        names, ports = self._input_catalog
 
         if user_input is not None:
             input_source_meanings: list[str] = user_input[OPTION_INPUT_SOURCES]
@@ -455,6 +463,8 @@ class OnkyoOptionsFlowHandler(OptionsFlowWithReload):
                         input_source.value, input_source_meaning
                     )
                     self._input_sources[input_source] = input_source_name
+                if user_input[OPTION_AUTO_INPUT_NAMES]:
+                    self._input_sources = apply_input_names(self._input_sources, names)
 
                 self._listening_modes = {}
                 for listening_mode_meaning in listening_mode_meanings:
@@ -503,9 +513,6 @@ class OnkyoOptionsFlowHandler(OptionsFlowWithReload):
             InputSource(code): name
             for code, name in entry_options[OPTION_INPUT_SOURCES].items()
         }
-        runtime = getattr(self.config_entry, "runtime_data", None)
-        names = runtime.manager.input_names if runtime is not None else {}
-        ports = runtime.manager.hdmi_ports if runtime is not None else {}
         schema = OPTIONS_STEP_INIT_SCHEMA.extend(
             {probatio.Required(OPTION_INPUT_SOURCES): receiver_input_selector(names, ports, configured)}
         )
