@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.7
+
+- Fix integration reloads and options changes failing during HA's on-unload cleanup: the radio cleanup callback now returns `None` instead of the removed FM/DAB object tuple.
+- Cover repeated setup/unload cycles using Home Assistant's actual config-entry cleanup processor.
+
 ## 0.5.6
 
 - Split the DAB browser into All stations (cached full list) and Presets (actual AVR memory slots).

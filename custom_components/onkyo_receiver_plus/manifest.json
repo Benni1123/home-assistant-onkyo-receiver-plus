@@ -11,5 +11,5 @@
   "issue_tracker": "https://github.com/Benni1123/home-assistant-onkyo-receiver-plus/issues",
   "loggers": ["aioonkyo"],
   "requirements": ["aioonkyo==0.4.0"],
-  "version": "0.5.6"
+  "version": "0.5.7"
 }

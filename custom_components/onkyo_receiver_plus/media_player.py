@@ -148,7 +148,7 @@ async def async_setup_entry(
 
     @callback
     def del_mp_entities() -> None:
-        del all_entities[entry.entry_id]
+        all_entities.pop(entry.entry_id, None)
 
     entry.async_on_unload(del_mp_entities)
 
@@ -163,9 +163,12 @@ async def async_setup_entry(
     fm_stations = data.fm
     dab_radio = data.dab
     hass.data.setdefault(DATA_RADIO, {})[entry.entry_id] = (fm_stations, dab_radio)
-    entry.async_on_unload(
-        lambda: hass.data.get(DATA_RADIO, {}).pop(entry.entry_id, None)
-    )
+    @callback
+    def del_radio() -> None:
+        """Discard per-entry radio references without returning their values."""
+        hass.data.get(DATA_RADIO, {}).pop(entry.entry_id, None)
+
+    entry.async_on_unload(del_radio)
 
     async def connect_callback(reconnect: bool) -> None:
         await manager.write(RawInstruction(DEVICE_INFO_CODE, b"QSTN"))

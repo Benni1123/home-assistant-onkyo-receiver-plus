@@ -6,9 +6,15 @@ import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
 from aioonkyo import Zone, status
+from homeassistant.config_entries import ConfigEntry
 
 from custom_components.onkyo_receiver_plus.fm import FmStations
-from custom_components.onkyo_receiver_plus.media_player import DATA_MP_ENTITIES, DATA_RADIO
+from custom_components.onkyo_receiver_plus.media_player import (
+    DATA_MP_ENTITIES, DATA_RADIO, async_setup_entry as async_setup_media_player,
+)
+from custom_components.onkyo_receiver_plus.const import (
+    OPTION_VOLUME_RESOLUTION, OPTION_MAX_VOLUME,
+)
 from custom_components.onkyo_receiver_plus.radio_controls import (
     FmName, FmFrequency, FmEditSelection, RadioButton,
 )
@@ -120,3 +126,33 @@ class ReceiverLifecycleTest(unittest.IsolatedAsyncioTestCase):
         first.__aexit__.assert_awaited_once()
         second.__aexit__.assert_awaited_once()
         self.assertFalse(self.manager.connected)
+
+
+class EntryUnloadTest(unittest.IsolatedAsyncioTestCase):
+    async def test_actual_ha_cleanup_after_repeated_media_setup_returns_no_objects(self):
+        """Exercise HA's own on-unload processor, not just manager.async_stop."""
+        hass = SimpleNamespace(data={DATA_MP_ENTITIES: {}})
+        for _ in range(3):
+            manager = SimpleNamespace(
+                info=SimpleNamespace(model_name="TX-NR6050"),
+                callbacks=SimpleNamespace(connect=[], disconnect=[], update=[]),
+            )
+            entry = SimpleNamespace(
+                entry_id="receiver",
+                options={OPTION_VOLUME_RESOLUTION: 100, OPTION_MAX_VOLUME: 40},
+                runtime_data=SimpleNamespace(
+                    manager=manager, sources={}, sound_modes={}, fm=object(), dab=object(),
+                ),
+                _on_unload=[], _tasks=set(), _background_tasks=set(),
+                async_create_task=Mock(side_effect=AssertionError(
+                    "Cleanup must not return radio objects as coroutine jobs"
+                )),
+            )
+            entry.async_on_unload = entry._on_unload.append
+            await async_setup_media_player(hass, entry, Mock())
+            self.assertIn("receiver", hass.data[DATA_RADIO])
+            self.assertIn("receiver", hass.data[DATA_MP_ENTITIES])
+            await ConfigEntry._async_process_on_unload(entry, hass)
+            entry.async_create_task.assert_not_called()
+            self.assertNotIn("receiver", hass.data[DATA_RADIO])
+            self.assertNotIn("receiver", hass.data[DATA_MP_ENTITIES])
